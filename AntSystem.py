@@ -3,6 +3,7 @@ import random
 from scipy.spatial.distance import euclidean
 from Optimizer import AbstractOptimizer
 import optuna
+import time
 from Problem import FlowShopProblem
 import matplotlib.pyplot as plt
 import cv2
@@ -17,12 +18,12 @@ class AntSystemOptimizer(AbstractOptimizer):
         self.alpha = params.get('alpha',1.0) # pheromone influence
         self.beta = params.get('beta',2.0) # visibility influence
         self.visibility_strat = params.get('visibility_strat','local_makespan') # how is the visiblity calculated
-        self.q = 50*(self.problem.num_machines+self.problem.num_jobs)*params.get('q',1.7 ) # phermone update intensity, by default it is a value that is relatively close to what an average makespan would look like
-        self.ro = params.get('ro',0.16) # evaporation rate
-        self.m = params.get('m',47) # number of ants
-        self.sigma0 = params.get('sigma0',0.1) # initial pheromone value for all edges of the graph
+        self.q = 50*(self.problem.num_machines+self.problem.num_jobs)*params.get('q',1.0 ) # phermone update intensity, by default it is a value that is relatively close to what an average makespan would look like
+        self.ro = params.get('ro',0.5) # evaporation rate
+        self.m = params.get('m',44) # number of ants
+        self.sigma0 = params.get('sigma0',0.2) # initial pheromone value for all edges of the graph
         self.n = params.get('n',500) # number of iterations in total
-        self.e = params.get('e',0.9) # elistist factor "pheromone boost to edges of the best path by iteration"
+        self.e = params.get('e',1.0) # elistist factor "pheromone boost to edges of the best path by iteration"
 
         self.pheromoneGraph = np.full((self.problem.num_jobs, self.problem.num_jobs), self.sigma0)
         self.frames = []
@@ -36,6 +37,7 @@ class AntSystemOptimizer(AbstractOptimizer):
 
     def optimize(self):
         # before starting the construction process, we need a reference solution to compare our algorithm's result with, so let's generate a random permutation
+        start_time = time.time()
         frames = [self.pheromoneGraph]
         current_solution = list(np.random.permutation(self.problem.num_jobs))
         current_makespan, _ = self.problem.evaluate(current_solution)
@@ -44,8 +46,6 @@ class AntSystemOptimizer(AbstractOptimizer):
             "local_makespan": self.local_makespan
         }
         visibility = functions[self.visibility_strat] # set the visiblity formula to use later
-        print(self.n , '\n')
-        print(self.q , '\n')
         for iteration in range(self.n):
             nb_jobs = self.problem.num_jobs
             deltaPheromon= np.zeros((self.problem.num_jobs, self.problem.num_jobs))
@@ -92,14 +92,18 @@ class AntSystemOptimizer(AbstractOptimizer):
             
             self.pheromoneGraph= self.pheromoneGraph * (1-self.ro) + deltaPheromon
             frames.append(self.pheromoneGraph)
-            #print("average makespan per batch : ", average_makespan/self.m)
+            #print("average makespan per batch : ", average_makespan/self.m, "   ", iteration)
         self.best_makespan = current_makespan
         self.best_solution = current_solution
+        end_time = time.time()
         self.frames = frames
+        self.execution_time = end_time-start_time
 
 
 
 
+
+    # this visualises the evolution of pheromone intensity on the graph matrix
     def generate_video(self,matrices, output_file='heatmap_video.mp4', fps=5):
         n = matrices[0].shape[0]
         
@@ -144,58 +148,79 @@ class AntSystemOptimizer(AbstractOptimizer):
             'n': trial.suggest_categorical("n",[50,100,500]),
             'e': trial.suggest_float("e",0.0,1.0)
         }
-        # return {
-        #     'alpha': trial.suggest_float('alpha', 1.0, 1.0),
-        #     'beta': trial.suggest_float('beta', 1.0, 1.0), 
-        #     'visibility_strat': trial.suggest_categorical('visibility_strat',  ['total_makespan']), 
-        #     'q': trial.suggest_float('q', 1,1), #here we are setting the ratio to be multiplied by 50*(nb_jobs+nb_machines)
-        #     'ro': trial.suggest_float('ro', 0.7,0.7), 
-        #     'm': trial.suggest_int('m', 10, 10), 
-        #     'sigma0': trial.suggest_float("sigma0", 1.0,1.0),
-        #     'n': trial.suggest_categorical("n",[100]),
-        #     'e': trial.suggest_float("e",1.0,1.0)
-        # }
+
 if __name__ == "__main__":
 
-    # # Load the problem
-    # problem = FlowShopProblem('./data/20_20_1.txt')
 
-    # # Create an Optuna study to minimize makespan
-    # study = optuna.create_study(direction='minimize')
+# there are two scenarios here, uncomment one of them only when testing
 
-    # # Define the optimization loop
-    # def objective(trial):
-    #     # Suggest parameters for the LocalSearchOptimizer
-    #     params = AntSystemOptimizer.suggest_params(trial)
-    #     optimizer = AntSystemOptimizer(problem, **params)
-    #     optimizer.run()
-    #     result = optimizer.get_results()
-    #     print(result)
-    #     return result['makespan']
+    #__1._________Run an entire HPO on a given instance__________________
 
-    # # Optimize the objective function with Optuna
-    # study.optimize(objective, n_trials=100)
+    """
 
-    # # Print the best hyperparameters and result
-    # print(f"Best Hyperparameters: {study.best_params}")
-    # print(f"Best Makespan: {study.best_value}")
+    # choose the instance
+    problem = FlowShopProblem('./data/20_20_1.txt')
 
+    # number of parameter samples to explore
+    n_trials = 100
 
+    # you can modify the intervals of searching for each parameter in the suggest_params class method
 
+    # Create an Optuna study to minimize makespan
+    study = optuna.create_study(direction='minimize')
 
+    # Define the optimization loop
+    def objective(trial):
+        # Suggest parameters for the LocalSearchOptimizer
+        params = AntSystemOptimizer.suggest_params(trial)
+        optimizer = AntSystemOptimizer(problem, **params)
+        optimizer.run()
+        result = optimizer.get_results()
+        print(result)
+        return result['makespan']
 
-
-    # Load the problem
-    problem = FlowShopProblem('./data/20_5_1.txt')
-    params = {}
-    optimizer = AntSystemOptimizer(problem, **params)
-    optimizer.optimize()
-    optimizer.generate_video(optimizer.frames,fps=5)
-
+    # Optimize the objective function with Optuna
+    study.optimize(objective, n_trials=n_trials)
 
     # Print the best hyperparameters and result
+    print(f"Best Hyperparameters: {study.best_params}")
+    print(f"Best Makespan: {study.best_value}")
+
+    """
+
+
+
+
+    #__2.__________Run a single instance with custom parameters__________________
+
+    # choose the path to the instance
+    path_to_instance = './data/20_5_1.txt'
+    problem = FlowShopProblem(path_to_instance)
+
+    # select the custom paramters for Ant system with elitism
+    params = {
+        'alpha': 1.0, # pheromon influence
+        'beta': 2.0, # visiblity influence
+        'q': 2.0, # pheromon intensity
+        'ro': 0.5, # phermon evaporation factor
+        'm': 20, # number of ants
+        'sigma0': 0.1, # intial pheromon value on all edges
+        'n': 100, # number of iterations
+        'visibility_strat': 'total_makespan', # visibilty strategy "either total_makespan or local_makespan"
+        'e': 1.0 # elitism factor, 0 means original Ant system algorithm, 1 means max boost to best edges
+    }
+
+    optimizer = AntSystemOptimizer(problem, **params)
+    optimizer.optimize()
+    
+    #uncomment this if you want to see a visualisation of the evolution of the graph matrix
+    #optimizer.generate_video(optimizer.frames,fps=30)
+
+
+    # This prints the path of the best solution, its makespan and the execution time in seconds
     print(f"Best path: {optimizer.best_solution}")
     print(f"Best Makespan: {optimizer.best_makespan}")
+    print(f"Total Execution time: {optimizer.execution_time} seconds")
 
 
         
