@@ -31,7 +31,7 @@ class AntSystemOptimizer(AbstractOptimizer):
     def local_makespan(self,j,path): # compute the total makespan for a job j
         return np.sum(self.problem.processing_times[:, j])
     def total_makespan(self,j,path): # compute the total makespan for all jobs in the path, ending with j
-        result, _ = self.problem.evaluate(path+[j])
+        result= self.problem.evaluate(path+[j])
         return result
     
 
@@ -40,7 +40,7 @@ class AntSystemOptimizer(AbstractOptimizer):
         start_time = time.time()
         frames = [self.pheromoneGraph]
         current_solution = list(np.random.permutation(self.problem.num_jobs))
-        current_makespan, _ = self.problem.evaluate(current_solution)
+        current_makespan = self.problem.evaluate(current_solution)
         functions = {
             "total_makespan": self.total_makespan,
             "local_makespan": self.local_makespan
@@ -72,7 +72,7 @@ class AntSystemOptimizer(AbstractOptimizer):
                     available_jobs.remove(selected_job)
                 # now that the loop is done, we should end up with nb_jobs-1 jobs scheduled, leaving us with the last job that will be automatically added to the list
                 path.append(available_jobs[0]) 
-                path_makespan , _= self.problem.evaluate(path)
+                path_makespan = self.problem.evaluate(path)
                 if(path_makespan<current_makespan):
                     current_solution=path
                     current_makespan=path_makespan
