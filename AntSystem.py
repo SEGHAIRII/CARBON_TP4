@@ -16,13 +16,13 @@ class AntSystemOptimizer(AbstractOptimizer):
         self.problem = problem
         self.alpha = params.get('alpha',1.0) # pheromone influence
         self.beta = params.get('beta',2.0) # visibility influence
-        self.visibility_strat = params.get('visibility_strat','total_makespan') # how is the visiblity calculated
-        self.q = 50*(self.problem.num_machines+self.problem.num_jobs)*params.get('q',1 ) # phermone update intensity, by default it is a value that is relatively close to what an average makespan would look like
-        self.ro = params.get('ro',0.3) # evaporation rate
-        self.m = params.get('m',5) # number of ants
-        self.sigma0 = params.get('sigma0',1.0) # initial pheromone value for all edges of the graph
-        self.n = params.get('n',100) # number of iterations in total
-
+        self.visibility_strat = params.get('visibility_strat','local_makespan') # how is the visiblity calculated
+        self.q = 50*(self.problem.num_machines+self.problem.num_jobs)*params.get('q',1.7 ) # phermone update intensity, by default it is a value that is relatively close to what an average makespan would look like
+        self.ro = params.get('ro',0.16) # evaporation rate
+        self.m = params.get('m',47) # number of ants
+        self.sigma0 = params.get('sigma0',0.1) # initial pheromone value for all edges of the graph
+        self.n = params.get('n',500) # number of iterations in total
+        self.e = params.get('e',0.9) # elistist factor "pheromone boost to edges of the best path by iteration"
 
         self.pheromoneGraph = np.full((self.problem.num_jobs, self.problem.num_jobs), self.sigma0)
         self.frames = []
@@ -61,10 +61,11 @@ class AntSystemOptimizer(AbstractOptimizer):
                     
                     current_job = path[-1] # get the current job so far
                     # now we will calculate the probability distribution so that the ant can pick the next task according to that distrbution
-                    score_list = [(self.pheromoneGraph[current_job,job]**self.alpha) * (1/visibility(job,path))**self.beta for job in available_jobs] 
+                    score_list = [(self.pheromoneGraph[current_job,job]**self.alpha) * ((1/visibility(job,path))**self.beta) for job in available_jobs] 
                     total = sum(score_list)
                     score_list = np.array(score_list)
-                    distribution = score_list / total
+                    # added .001 to avoid division by 0
+                    distribution = (score_list+(0.001/len(available_jobs)) )/ (total+0.001)
                     sampled_job_index = np.random.choice(len(distribution), p=distribution)
                     selected_job = available_jobs[sampled_job_index]
                     path.append(selected_job)
@@ -85,13 +86,13 @@ class AntSystemOptimizer(AbstractOptimizer):
             best_iteration_path,best_iteration_path_makespan = max(ants_log, key=lambda x: x[1])
 
             # the elitism part
-            for arc in range(len(path)-1):
+            for arc in range(len(best_iteration_path)-1):
                 deltaPheromon[best_iteration_path[arc],best_iteration_path[arc+1]]+=self.e*self.q/best_iteration_path_makespan
             
             
             self.pheromoneGraph= self.pheromoneGraph * (1-self.ro) + deltaPheromon
             frames.append(self.pheromoneGraph)
-            print("average makespan per batch : ", average_makespan/self.m)
+            #print("average makespan per batch : ", average_makespan/self.m)
         self.best_makespan = current_makespan
         self.best_solution = current_solution
         self.frames = frames
@@ -132,30 +133,32 @@ class AntSystemOptimizer(AbstractOptimizer):
     @classmethod
     def suggest_params(cls, trial):
         #setting the different search space intervals
-        # return {
-        #     'alpha': trial.suggest_float('alpha', 0.0, 5.0),
-        #     'beta': trial.suggest_float('beta', 1.0, 5.0), 
-        #     'visibility_strat': trial.suggest_categorical('visibility_strat',  ['total_makespan','local_makespan']), 
-        #     'q': trial.suggest_float('q', 0.1, 100.0,log=True), #here we are setting the ratio to be multiplied by 50*(nb_jobs+nb_machines)
-        #     'ro': trial.suggest_float('ro', 0.1, 0.9), 
-        #     'm': trial.suggest_int('m', 5, 50), 
-        #     'sigma0': trial.suggest_float("sigma0", 0.01, 1.0, log=True),
-        #     'n': trial.suggest_categorical("n",[50,100,500])
-        # }
         return {
-            'alpha': trial.suggest_float('alpha', 1.0, 1.0),
-            'beta': trial.suggest_float('beta', 1.0, 1.0), 
-            'visibility_strat': trial.suggest_categorical('visibility_strat',  ['total_makespan']), 
-            'q': trial.suggest_float('q', 1,1), #here we are setting the ratio to be multiplied by 50*(nb_jobs+nb_machines)
-            'ro': trial.suggest_float('ro', 0.7,0.7), 
-            'm': trial.suggest_int('m', 10, 10), 
-            'sigma0': trial.suggest_float("sigma0", 1.0,1.0),
-            'n': trial.suggest_categorical("n",[100])
+            'alpha': trial.suggest_float('alpha', 0.0, 5.0),
+            'beta': trial.suggest_float('beta', 1.0, 5.0), 
+            'visibility_strat': trial.suggest_categorical('visibility_strat',  ['total_makespan','local_makespan']), 
+            'q': trial.suggest_float('q', 0.1, 10.0,log=True), #here we are setting the ratio to be multiplied by 50*(nb_jobs+nb_machines)
+            'ro': trial.suggest_float('ro', 0.1, 0.9), 
+            'm': trial.suggest_int('m', 5, 50), 
+            'sigma0': trial.suggest_float("sigma0", 0.01, 1.0, log=True),
+            'n': trial.suggest_categorical("n",[50,100,500]),
+            'e': trial.suggest_float("e",0.0,1.0)
         }
+        # return {
+        #     'alpha': trial.suggest_float('alpha', 1.0, 1.0),
+        #     'beta': trial.suggest_float('beta', 1.0, 1.0), 
+        #     'visibility_strat': trial.suggest_categorical('visibility_strat',  ['total_makespan']), 
+        #     'q': trial.suggest_float('q', 1,1), #here we are setting the ratio to be multiplied by 50*(nb_jobs+nb_machines)
+        #     'ro': trial.suggest_float('ro', 0.7,0.7), 
+        #     'm': trial.suggest_int('m', 10, 10), 
+        #     'sigma0': trial.suggest_float("sigma0", 1.0,1.0),
+        #     'n': trial.suggest_categorical("n",[100]),
+        #     'e': trial.suggest_float("e",1.0,1.0)
+        # }
 if __name__ == "__main__":
 
     # # Load the problem
-    # problem = FlowShopProblem('./data/20_5_1.txt')
+    # problem = FlowShopProblem('./data/20_20_1.txt')
 
     # # Create an Optuna study to minimize makespan
     # study = optuna.create_study(direction='minimize')
@@ -171,11 +174,16 @@ if __name__ == "__main__":
     #     return result['makespan']
 
     # # Optimize the objective function with Optuna
-    # study.optimize(objective, n_trials=1)
+    # study.optimize(objective, n_trials=100)
 
     # # Print the best hyperparameters and result
     # print(f"Best Hyperparameters: {study.best_params}")
     # print(f"Best Makespan: {study.best_value}")
+
+
+
+
+
 
     # Load the problem
     problem = FlowShopProblem('./data/20_5_1.txt')
