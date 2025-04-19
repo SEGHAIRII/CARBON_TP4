@@ -17,7 +17,7 @@ class LocalSearchOptimizer(AbstractOptimizer):
         # Start with a random permutation of jobs
         current_solution = list(np.random.permutation(self.problem.num_jobs))
         # Evaluate the initial solution and extract only the makespan (first value of the tuple)
-        current_makespan, _ = self.problem.evaluate(current_solution)
+        current_makespan = self.problem.evaluate(current_solution)
 
         # Explore the neighborhood for a maximum of `neighborhood_size` iterations
         for _ in range(self.neighborhood_size):
@@ -30,7 +30,7 @@ class LocalSearchOptimizer(AbstractOptimizer):
                     neighbor = current_solution[:]
                     neighbor[i], neighbor[j] = neighbor[j], neighbor[i]  # Swap
                     # Evaluate the neighbor and extract the makespan
-                    makespan, _ = self.problem.evaluate(neighbor)
+                    makespan = self.problem.evaluate(neighbor)
 
                     if makespan < best_makespan:
                         best_makespan = makespan

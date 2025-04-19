@@ -45,7 +45,7 @@ class FlowShopProblem:
         end_time = time.time()
         execution_time = end_time - start_time
 
-        return makespan, execution_time
+        return makespan
 
 
     def get_num_jobs(self):
