@@ -3,7 +3,7 @@ import random
 import math
 from Optimizer import AbstractOptimizer
 from Problem import FlowShopProblem
-
+import optuna
 class SimulatedAnnealingOptimizer(AbstractOptimizer):
 
     def optimize(self):
@@ -118,7 +118,17 @@ if __name__ == "__main__":
     # Example usage
 
     problem = FlowShopProblem('./data/20_5_1.txt')
-    optimizer = SimulatedAnnealingOptimizer(problem)
-    optimizer.optimize()
-    print("Best solution:", optimizer.best_solution)
-    print("Best makespan:", optimizer.best_makespan)
+    study = optuna.create_study(direction='minimize')
+
+    # Define the optimization loop
+    def objective(trial):
+        # Suggest parameters for the LocalSearchOptimizer
+        params = SimulatedAnnealingOptimizer.suggest_params(trial)
+        optimizer = SimulatedAnnealingOptimizer(problem, **params)
+        optimizer.run()
+        result = optimizer.get_results()
+        print(result)
+        return result['makespan']
+
+    # Optimize the objective function with Optuna
+    study.optimize(objective, n_trials=50)
