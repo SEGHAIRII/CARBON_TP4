@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carbon Team - FlowShop Optimizer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+                <img src="{{ url_for('static', filename='images/carbon.png') }}" alt="Carbon Logo" style="height: 40px;">
+                <span>FlowShop Optimizer</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/">
+                            <i class="bi bi-house-door"></i> Home
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/history">
+                            <i class="bi bi-clock-history"></i> History
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/compare">
+                            <i class="bi bi-bar-chart-steps"></i> Compare
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/analytics">
+                            <i class="bi bi-graph-up"></i> Analytics
+                        </a>
+                    </li>
+                </ul>
+                <div class="ms-auto d-none d-lg-block">
+                    <span class="badge bg-light text-dark">
+                        <i class="bi bi-people-fill"></i> Carbon Team
+                    </span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card mb-4 fade-in">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-gear-fill"></i> Optimization Settings
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="optimization-form">
+                            <div class="mb-3">
+                                <label for="problem-instance" class="form-label">Problem Instance</label>
+                                <select class="form-select" id="problem-instance" required>
+                                    <option value="" selected disabled>Select a problem instance</option>
+                                    {% for instance in problem_instances %}
+                                    <option value="{{ instance }}">{{ instance }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="algorithm" class="form-label">Algorithm</label>
+                                <select class="form-select" id="algorithm" required>
+                                    <option value="" selected disabled>Select an algorithm</option>
+                                    {% for algorithm in algorithms %}
+                                    <option value="{{ algorithm.id }}">{{ algorithm.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div id="algorithm-info" class="mb-3 d-none">
+                                <div class="card">
+                                    <div class="card-header bg-info text-white">
+                                        <h6 class="mb-0">Algorithm Information</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <p id="algorithm-description"></p>
+                                        <h6>Strengths:</h6>
+                                        <ul id="algorithm-strengths"></ul>
+                                        <h6>Weaknesses:</h6>
+                                        <ul id="algorithm-weaknesses"></ul>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="parameters-container" class="mb-3">
+                                <!-- Parameters will be loaded dynamically -->
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-play-fill"></i> Run Optimization
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="card mb-4 fade-in" style="animation-delay: 0.1s;">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-info-circle"></i> Problem Information
+                        </h5>
+                    </div>
+                    <div class="card-body" id="problem-info">
+                        <p class="text-center text-muted">Select a problem instance to view details</p>
+                    </div>
+                </div>
+                
+                <div class="card mb-4 fade-in" style="animation-delay: 0.2s;">
+                    <div class="card-header bg-warning text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-lightbulb"></i> Algorithm Recommendation
+                        </h5>
+                        <span class="team-badge">Carbon AI</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-center text-muted" id="recommendation-placeholder">Select a problem instance to get a recommendation</p>
+                        <div id="recommendation-content" class="d-none">
+                            <div class="alert alert-info">
+                                <h5 class="alert-heading">Recommended Algorithm: <span id="recommended-algorithm"></span></h5>
+                                <p id="recommendation-reason"></p>
+                            </div>
+                            <div class="mb-3">
+                                <h6>Problem Analysis</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <tbody id="problem-analysis-table">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <button id="apply-recommendation-button" class="btn btn-warning w-100">
+                                <i class="bi bi-check-circle"></i> Apply Recommended Settings
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-8">
+                <div class="card mb-4 fade-in" style="animation-delay: 0.3s;">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-graph-up"></i> Optimization Results
+                        </h5>
+                    </div>
+                    <div class="card-body" id="results-container">
+                        <div id="progress-container" class="d-none">
+                            <h5 id="progress-title">Running optimization...</h5>
+                            <div class="progress mb-3">
+                                <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <p id="progress-message" class="text-muted"></p>
+                            <button id="cancel-button" class="btn btn-sm btn-danger">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </button>
+                        </div>
+                        
+                        <div id="results-display" class="d-none">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="card bg-light">
+                                        <div class="card-body">
+                                            <h5 class="card-title">Makespan</h5>
+                                            <h2 id="result-makespan" class="text-primary"></h2>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card bg-light">
+                                        <div class="card-body">
+                                            <h5 class="card-title">Execution Time</h5>
+                                            <h2 id="result-time" class="text-success"></h2>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <h5>Best Solution</h5>
+                                <div class="solution-display p-2 bg-light rounded" id="result-solution"></div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <h5>Gantt Chart</h5>
+                                <div class="text-center" id="gantt-chart-container">
+                                    <img id="gantt-chart" class="img-fluid rounded" alt="Gantt Chart">
+                                </div>
+                            </div>
+                            
+                            <div id="solution-viz-container" class="mb-3 d-none">
+                                <h5>Solution Visualization</h5>
+                                <div class="text-center">
+                                    <img id="solution-viz" class="img-fluid rounded" alt="Solution Visualization">
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between">
+                                <button id="save-result-button" class="btn btn-primary">
+                                    <i class="bi bi-save"></i> Save Result
+                                </button>
+                                <button id="export-result-button" class="btn btn-secondary">
+                                    <i class="bi bi-download"></i> Export
+                                </button>
+                                <button id="new-optimization-button" class="btn btn-success">
+                                    <i class="bi bi-plus-circle"></i> New Optimization
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="no-results" class="text-center py-5">
+                            <i class="bi bi-bar-chart-line display-1 text-muted"></i>
+                            <p class="mt-3 text-muted">Configure and run an optimization to see results</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <footer class="app-footer">
+        <div class="container">
+            <p>© 2025 Carbon Team | FlowShop Optimizer | <a href="#">Documentation</a></p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Connect to Socket.IO
+        const socket = io();
+        let currentOptimizerId = null;
+        
+    // Define algorithm descriptions for the recommendation section
+    const algorithm_descriptions = {
+        "ant_system": {
+            "name": "Ant System",
+            "description": "A population-based metaheuristic inspired by the foraging behavior of ants."
+        },
+        "genetic": {
+            "name": "Genetic Algorithm",
+            "description": "An evolutionary algorithm inspired by natural selection."
+        },
+        "local_search": {
+            "name": "Local Search",
+            "description": "A simple hill-climbing algorithm that iteratively improves a solution."
+        },
+        "simulated_annealing": {
+            "name": "Simulated Annealing",
+            "description": "A probabilistic technique inspired by the annealing process in metallurgy."
+        }
+    };
+        
+        // Load algorithm parameters when algorithm is selected
+        document.getElementById('algorithm').addEventListener('change', function() {
+            const algorithm = this.value;
+            if (!algorithm) return;
+            
+            // Load algorithm info
+            fetch(`/algorithm_info/${algorithm}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('algorithm-info').classList.remove('d-none');
+                    document.getElementById('algorithm-description').textContent = data.description;
+                    
+                    const strengthsList = document.getElementById('algorithm-strengths');
+                    strengthsList.innerHTML = '';
+                    data.strengths.forEach(strength => {
+                        const li = document.createElement('li');
+                        li.textContent = strength;
+                        strengthsList.appendChild(li);
+                    });
+                    
+                    const weaknessesList = document.getElementById('algorithm-weaknesses');
+                    weaknessesList.innerHTML = '';
+                    data.weaknesses.forEach(weakness => {
+                        const li = document.createElement('li');
+                        li.textContent = weakness;
+                        weaknessesList.appendChild(li);
+                    });
+                });
+            
+            // Load algorithm parameters
+            fetch('/get_algorithm_params', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ algorithm }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('parameters-container');
+                container.innerHTML = '';
+                
+                if (data.params && data.params.length > 0) {
+                    const paramTitle = document.createElement('h5');
+                    paramTitle.textContent = 'Algorithm Parameters';
+                    paramTitle.className = 'mb-3';
+                    container.appendChild(paramTitle);
+                    
+                    data.params.forEach(param => {
+                        const formGroup = document.createElement('div');
+                        formGroup.className = 'mb-3';
+                        
+                        const label = document.createElement('label');
+                        label.htmlFor = param.id;
+                        label.className = 'form-label d-flex justify-content-between';
+                        label.innerHTML = `
+                            ${param.name}
+                            <i class="bi bi-info-circle text-primary" 
+                               data-bs-toggle="tooltip" 
+                               data-bs-placement="top" 
+                               title="${param.description}"></i>
+                        `;
+                        
+                        let input;
+                        
+                        if (param.type === 'select') {
+                            input = document.createElement('select');
+                            input.className = 'form-select';
+                            
+                            param.options.forEach(option => {
+                                const optionEl = document.createElement('option');
+                                optionEl.value = option.value;
+                                optionEl.textContent = option.text;
+                                if (option.value === param.default) {
+                                    optionEl.selected = true;
+                                }
+                                input.appendChild(optionEl);
+                            });
+                        } else {
+                            input = document.createElement('input');
+                            input.type = param.type;
+                            input.className = 'form-control';
+                            input.value = param.default;
+                            
+                            if (param.min !== undefined) input.min = param.min;
+                            if (param.max !== undefined) input.max = param.max;
+                            if (param.step !== undefined) input.step = param.step;
+                        }
+                        
+                        input.id = param.id;
+                        input.name = param.id;
+                        
+                        formGroup.appendChild(label);
+                        formGroup.appendChild(input);
+                        container.appendChild(formGroup);
+                    });
+                    
+                    // Initialize tooltips
+                    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                        return new bootstrap.Tooltip(tooltipTriggerEl);
+                    });
+                }
+            });
+        });
+        
+        // Load problem info when problem instance is selected
+        document.getElementById('problem-instance').addEventListener('change', function() {
+            const problemInstance = this.value;
+            if (!problemInstance) return;
+            
+            fetch(`/get_problem_info/${problemInstance}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('problem-info').innerHTML = `
+                            <div class="alert alert-danger">
+                                ${data.error}
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    document.getElementById('problem-info').innerHTML = `
+                        <div class="mb-3">
+                            <h6>Problem Size</h6>
+                            <p><strong>Jobs:</strong> ${data.num_jobs} | <strong>Machines:</strong> ${data.num_machines}</p>
+                        </div>
+                        <div class="mb-3">
+                            <h6>Processing Times</h6>
+                            <div class="text-center">
+                                <img src="data:image/png;base64,${data.processing_times_viz}" class="img-fluid rounded" alt="Processing Times">
+                            </div>
+                        </div>
+                    `;
+                });
+            
+    // Get algorithm recommendation
+    fetch('/recommend_algorithm', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ problem_instance: problemInstance }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            document.getElementById('recommendation-placeholder').textContent = `Error: ${data.error}`;
+            document.getElementById('recommendation-content').classList.add('d-none');
+            return;
+        }
+        
+        document.getElementById('recommendation-placeholder').classList.add('d-none');
+        document.getElementById('recommendation-content').classList.remove('d-none');
+        
+        // Make sure we have the algorithm name
+        const algorithmName = algorithm_descriptions[data.algorithm] ? 
+            algorithm_descriptions[data.algorithm].name : 
+            data.algorithm;
+            
+        document.getElementById('recommended-algorithm').textContent = algorithmName;
+        document.getElementById('recommendation-reason').textContent = data.reason || "No reason provided";
+        
+        // Populate problem analysis table
+        const analysisTable = document.getElementById('problem-analysis-table');
+        analysisTable.innerHTML = '';
+        
+        if (data.problem_analysis) {
+            for (const [key, value] of Object.entries(data.problem_analysis)) {
+                const row = document.createElement('tr');
+                
+                const keyCell = document.createElement('th');
+                keyCell.textContent = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                
+                const valueCell = document.createElement('td');
+                valueCell.textContent = typeof value === 'number' ? value.toFixed(2) : value;
+                
+                row.appendChild(keyCell);
+                row.appendChild(valueCell);
+                analysisTable.appendChild(row);
+            }
+        }
+        
+        // Set up apply recommendation button
+        document.getElementById('apply-recommendation-button').onclick = function() {
+            document.getElementById('algorithm').value = data.algorithm;
+            document.getElementById('algorithm').dispatchEvent(new Event('change'));
+            
+            // Wait for parameters to load
+            setTimeout(() => {
+                if (data.params) {
+                    for (const [key, value] of Object.entries(data.params)) {
+                        const input = document.getElementById(key);
+                        if (input) {
+                            input.value = value;
+                        }
+                    }
+                }
+            }, 500);
+        };
+    })
+    .catch(error => {
+        console.error("Error fetching algorithm recommendation:", error);
+        document.getElementById('recommendation-placeholder').textContent = `Error: ${error.message}`;
+        document.getElementById('recommendation-content').classList.add('d-none');
+    });
+        });
+        
+        // Handle form submission
+        document.getElementById('optimization-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const problemInstance = document.getElementById('problem-instance').value;
+            const algorithm = document.getElementById('algorithm').value;
+            
+            if (!problemInstance || !algorithm) {
+                alert('Please select a problem instance and an algorithm');
+                return;
+            }
+            
+            // Collect parameters
+            const params = {};
+            const paramInputs = document.querySelectorAll('#parameters-container input, #parameters-container select');
+            paramInputs.forEach(input => {
+                params[input.id] = input.value;
+            });
+            
+            // Show progress container
+            document.getElementById('no-results').classList.add('d-none');
+            document.getElementById('results-display').classList.add('d-none');
+            document.getElementById('progress-container').classList.remove('d-none');
+            document.getElementById('progress-title').textContent = `Running ${algorithm} on ${problemInstance}...`;
+            document.getElementById('progress-bar').style.width = '0%';
+            document.getElementById('progress-message').textContent = 'Initializing...';
+            
+            // Start optimization
+            fetch('/run_optimization', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    problem_instance: problemInstance,
+                    algorithm: algorithm,
+                    params: params
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(`Error: ${data.error}`);
+                    document.getElementById('progress-container').classList.add('d-none');
+                    document.getElementById('no-results').classList.remove('d-none');
+                    return;
+                }
+                
+                currentOptimizerId = data.optimizer_id;
+            })
+            .catch(error => {
+                alert(`Error: ${error.message}`);
+                document.getElementById('progress-container').classList.add('d-none');
+                document.getElementById('no-results').classList.remove('d-none');
+            });
+        });
+        
+        // Handle cancel button
+        document.getElementById('cancel-button').addEventListener('click', function() {
+            if (!currentOptimizerId) return;
+            
+            fetch(`/cancel_optimization/${currentOptimizerId}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('progress-container').classList.add('d-none');
+                document.getElementById('no-results').classList.remove('d-none');
+                currentOptimizerId = null;
+            });
+        });
+        
+        // Handle new optimization button
+        document.getElementById('new-optimization-button').addEventListener('click', function() {
+            document.getElementById('results-display').classList.add('d-none');
+            document.getElementById('no-results').classList.remove('d-none');
+        });
+        
+        // Handle save result button
+        document.getElementById('save-result-button').addEventListener('click', function() {
+            alert('Result saved to history!');
+        });
+        
+        // Handle export result button
+        document.getElementById('export-result-button').addEventListener('click', function() {
+            window.open('/export_history?format=csv', '_blank');
+        });
+        
+        // Socket.IO event handlers
+        socket.on('optimization_progress', function(data) {
+            if (data.id !== currentOptimizerId) return;
+            
+            document.getElementById('progress-bar').style.width = `${data.progress}%`;
+            document.getElementById('progress-message').textContent = data.message;
+        });
+        
+        socket.on('optimization_complete', function(data) {
+            if (data.id !== currentOptimizerId) return;
+            
+            document.getElementById('progress-container').classList.add('d-none');
+            document.getElementById('results-display').classList.remove('d-none');
+            
+            document.getElementById('result-makespan').textContent = data.best_makespan;
+            document.getElementById('result-time').textContent = `${data.elapsed_time.toFixed(2)}s`;
+            
+            const solutionDisplay = document.getElementById('result-solution');
+            solutionDisplay.innerHTML = '';
+            data.solution.forEach((job, index) => {
+                const jobSpan = document.createElement('span');
+                jobSpan.className = 'badge bg-primary me-1';
+                jobSpan.textContent = `Job ${job}`;
+                solutionDisplay.appendChild(jobSpan);
+                
+                if ((index + 1) % 10 === 0) {
+                    solutionDisplay.appendChild(document.createElement('br'));
+                }
+            });
+        });
+        
+        socket.on('optimization_error', function(data) {
+            if (data.id !== currentOptimizerId) return;
+            
+            alert(`Error: ${data.message}`);
+            document.getElementById('progress-container').classList.add('d-none');
+            document.getElementById('no-results').classList.remove('d-none');
+        });
+        
+        socket.on('optimization_result', function(data) {
+            if (data.id !== currentOptimizerId) return;
+            
+            // Update Gantt chart
+            if (data.gantt_chart) {
+                document.getElementById('gantt-chart').src = `data:image/png;base64,${data.gantt_chart}`;
+            }
+            
+            // Update solution visualization if available
+            if (data.solution_viz) {
+                document.getElementById('solution-viz-container').classList.remove('d-none');
+                document.getElementById('solution-viz').src = `data:image/png;base64,${data.solution_viz}`;
+            } else {
+                document.getElementById('solution-viz-container').classList.add('d-none');
+            }
+        });
+    </script>
+</body>
+</html>
