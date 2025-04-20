@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Algorithm Analytics - FlowShop Optimizer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-diagram-3"></i> FlowShop Optimizer
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/history">History</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/compare">Compare</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/analytics">Analytics</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-graph-up"></i> Algorithm Performance Analytics
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="loading-container" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3">Loading analytics...</p>
+                </div>
+                
+                <div id="analytics-container" class="d-none">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-info text-white">
+                                    <h5 class="card-title mb-0">Makespan Performance</h5>
+                                </div>
+                                <div class="card-body">
+                                    <img id="performance-chart" class="img-fluid" alt="Performance Chart">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-success text-white">
+                                    <h5 class="card-title mb-0">Execution Time Performance</h5>
+                                </div>
+                                <div class="card-body">
+                                    <img id="execution-time-chart" class="img-fluid" alt="Execution Time Chart">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h5 class="mb-3">Algorithm Statistics</h5>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Algorithm</th>
+                                    <th>Runs</th>
+                                    <th>Avg. Makespan</th>
+                                    <th>Min Makespan</th>
+                                    <th>Max Makespan</th>
+                                    <th>Avg. Time (s)</th>
+                                    <th>Problem Instances</th>
+                                </tr>
+                            </thead>
+                            <tbody id="analytics-table-body">
+                                <!-- Analytics data will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div id="no-data-message" class="alert alert-warning d-none">
+                        <i class="bi bi-exclamation-triangle"></i> No optimization history available. Run some optimizations to see analytics.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load analytics data
+            fetch('/algorithm_analytics')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('loading-container').classList.add('d-none');
+                    document.getElementById('analytics-container').classList.remove('d-none');
+                    
+                    if (data.error) {
+                        document.getElementById('no-data-message').classList.remove('d-none');
+                        return;
+                    }
+                    
+                    // Update charts
+                    document.getElementById('performance-chart').src = `data:image/png;base64,${data.performance_chart}`;
+                    document.getElementById('execution-time-chart').src = `data:image/png;base64,${data.execution_time_chart}`;
+                    
+                    // Update table
+                    const tableBody = document.getElementById('analytics-table-body');
+                    tableBody.innerHTML = '';
+                    
+                    for (const [algorithm, stats] of Object.entries(data.analytics)) {
+                        const row = document.createElement('tr');
+                        
+                        const algorithmCell = document.createElement('td');
+                        algorithmCell.textContent = algorithm;
+                        
+                        const runsCell = document.createElement('td');
+                        runsCell.textContent = stats.count;
+                        
+                        const avgMakespanCell = document.createElement('td');
+                        avgMakespanCell.textContent = stats.avg_makespan.toFixed(2);
+                        
+                        const minMakespanCell = document.createElement('td');
+                        minMakespanCell.textContent = stats.min_makespan.toFixed(2);
+                        
+                        const maxMakespanCell = document.createElement('td');
+                        maxMakespanCell.textContent = stats.max_makespan.toFixed(2);
+                        
+                        const avgTimeCell = document.createElement('td');
+                        avgTimeCell.textContent = stats.avg_execution_time.toFixed(2);
+                        
+                        const problemsCell = document.createElement('td');
+                        problemsCell.textContent = stats.problem_instances.join(', ');
+                        
+                        row.appendChild(algorithmCell);
+                        row.appendChild(runsCell);
+                        row.appendChild(avgMakespanCell);
+                        row.appendChild(minMakespanCell);
+                        row.appendChild(maxMakespanCell);
+                        row.appendChild(avgTimeCell);
+                        row.appendChild(problemsCell);
+                        
+                        tableBody.appendChild(row);
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('loading-container').classList.add('d-none');
+                    document.getElementById('analytics-container').classList.remove('d-none');
+                    document.getElementById('no-data-message').classList.remove('d-none');
+                    document.getElementById('no-data-message').textContent = `Error: ${error.message}`;
+                });
+        });
+    </script>
+</body>
+</html>
