@@ -25,7 +25,8 @@ class AntSystemOptimizer(AbstractOptimizer):
         self.n = params.get('n',500) # number of iterations in total
         self.e = params.get('e',1.0) # elistist factor "pheromone boost to edges of the best path by iteration"
 
-        self.pheromoneGraph = np.full((self.problem.num_jobs, self.problem.num_jobs), self.sigma0)
+        # the pheromone graph will include a virtual task number -1 for all ants to start from
+        self.pheromoneGraph = np.full((self.problem.num_jobs+1, self.problem.num_jobs+1), self.sigma0)
         self.frames = []
 
     def local_makespan(self,j,path): # compute the total makespan for a job j
@@ -48,20 +49,17 @@ class AntSystemOptimizer(AbstractOptimizer):
         visibility = functions[self.visibility_strat] # set the visiblity formula to use later
         for iteration in range(self.n):
             nb_jobs = self.problem.num_jobs
-            deltaPheromon= np.zeros((self.problem.num_jobs, self.problem.num_jobs))
+            deltaPheromon= np.zeros((self.problem.num_jobs+1, self.problem.num_jobs+1))
             average_makespan = 0
             ants_log = []
             for ant in range(self.m):
                 available_jobs = list(range(nb_jobs))
-                path = [] # start with an empty path
-                first_step = np.random.randint(0, nb_jobs)
-                path.append(first_step) # start at a random node in the graph
-                available_jobs.remove(first_step) 
-                while len(available_jobs) > 1: # there are nb_jobs-1 jobs left and the last job will be chosen anyways so we will run nb_jobs-2 iterations
+                path = [-1] # start always with the -1 task "the virtual initial task"
+                while len(available_jobs) > 1: # we have nb_jobs available jobs, the ant will choose n-1 using decision rules, the last remaining job will be chosen anyways so we processed that later after the while loop
                     
                     current_job = path[-1] # get the current job so far
                     # now we will calculate the probability distribution so that the ant can pick the next task according to that distrbution
-                    score_list = [(self.pheromoneGraph[current_job,job]**self.alpha) * ((1/visibility(job,path))**self.beta) for job in available_jobs] 
+                    score_list = [(self.pheromoneGraph[current_job+1,job+1]**self.alpha) * ((1/visibility(job,path[1:]))**self.beta) for job in available_jobs] 
                     total = sum(score_list)
                     score_list = np.array(score_list)
                     # added .001 to avoid division by 0
@@ -72,27 +70,27 @@ class AntSystemOptimizer(AbstractOptimizer):
                     available_jobs.remove(selected_job)
                 # now that the loop is done, we should end up with nb_jobs-1 jobs scheduled, leaving us with the last job that will be automatically added to the list
                 path.append(available_jobs[0]) 
-                path_makespan = self.problem.evaluate(path)
+                path_makespan = self.problem.evaluate(path[1:])
                 if(path_makespan<current_makespan):
-                    current_solution=path
+                    current_solution=path[1:]
                     current_makespan=path_makespan
                 #print("ant path and makespan : ", path, " ", path_makespan)
                 average_makespan = average_makespan + path_makespan
                 # computing delta sigma for this particular ant for later updates
                 deltaSigma=self.q/path_makespan
                 for arc in range(len(path)-1):
-                    deltaPheromon[path[arc],path[arc+1]]+=deltaSigma
+                    deltaPheromon[path[arc]+1,path[arc+1]+1]+=deltaSigma
                 ants_log.append((path,path_makespan))
             best_iteration_path,best_iteration_path_makespan = max(ants_log, key=lambda x: x[1])
 
             # the elitism part
             for arc in range(len(best_iteration_path)-1):
-                deltaPheromon[best_iteration_path[arc],best_iteration_path[arc+1]]+=self.e*self.q/best_iteration_path_makespan
+                deltaPheromon[best_iteration_path[arc]+1,best_iteration_path[arc+1]+1]+=self.e*self.q/best_iteration_path_makespan
             
             
             self.pheromoneGraph= self.pheromoneGraph * (1-self.ro) + deltaPheromon
             frames.append(self.pheromoneGraph)
-            #print("average makespan per batch : ", average_makespan/self.m, "   ", iteration)
+            print("average makespan per batch : ", average_makespan/self.m, "   ", iteration)
         self.best_makespan = current_makespan
         self.best_solution = current_solution
         end_time = time.time()
@@ -104,15 +102,17 @@ class AntSystemOptimizer(AbstractOptimizer):
 
 
     # this visualises the evolution of pheromone intensity on the graph matrix
-    def generate_video(self,matrices, output_file='heatmap_video.mp4', fps=5):
+    def generate_video(self, matrices, output_file='heatmap_video.mp4', fps=5):
         n = matrices[0].shape[0]
-        
         # Set up the figure
         fig, ax = plt.subplots()
         vmin = np.min(matrices)
         vmax = np.max(matrices)
         cax = ax.imshow(matrices[0], cmap='hot', interpolation='nearest', vmin=vmin, vmax=vmax)
         plt.axis('off')
+
+        # Add colorbar to show intensity scale
+        fig.colorbar(cax, ax=ax, fraction=0.046, pad=0.04)
 
         # Use Agg backend to render to a buffer
         from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
@@ -124,7 +124,6 @@ class AntSystemOptimizer(AbstractOptimizer):
         video = cv2.VideoWriter(output_file, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
 
         for matrix in matrices:
-            
             cax.set_data(matrix)
             canvas.draw()
             img = np.frombuffer(canvas.tostring_rgb(), dtype='uint8').reshape((height, width, 3))
@@ -200,14 +199,14 @@ if __name__ == "__main__":
     # select the custom paramters for Ant system with elitism
     params = {
         'alpha': 1.0, # pheromon influence
-        'beta': 2.0, # visiblity influence
+        'beta': 2, # visiblity influence
         'q': 2.0, # pheromon intensity
         'ro': 0.5, # phermon evaporation factor
-        'm': 20, # number of ants
-        'sigma0': 0.1, # intial pheromon value on all edges
-        'n': 100, # number of iterations
-        'visibility_strat': 'total_makespan', # visibilty strategy "either total_makespan or local_makespan"
-        'e': 1.0 # elitism factor, 0 means original Ant system algorithm, 1 means max boost to best edges
+        'm': 10, # number of ants
+        'sigma0': 0.2, # intial pheromon value on all edges
+        'n':100, # number of iterations
+        'visibility_strat': 'local_makespan', # visibilty strategy "either total_makespan or local_makespan"
+        'e': 0.8 # elitism factor, 0 means original Ant system algorithm, 1 means max boost to best edges
     }
 
     optimizer = AntSystemOptimizer(problem, **params)

@@ -188,7 +188,7 @@ class TrackableAntSystemOptimizer(AntSystemOptimizer):
         self.n = self.params.get('n', 500)
         self.e = self.params.get('e', 1.0)
 
-        self.pheromoneGraph = np.full((self.problem.num_jobs, self.problem.num_jobs), self.sigma0)
+        self.pheromoneGraph = np.full((self.problem.num_jobs+1, self.problem.num_jobs+1), self.sigma0)
         self.frames = []
         
         # Before starting the construction process, we need a reference solution
@@ -196,70 +196,62 @@ class TrackableAntSystemOptimizer(AntSystemOptimizer):
         frames = [self.pheromoneGraph]
         current_solution = list(np.random.permutation(self.problem.num_jobs))
         current_makespan = self.problem.evaluate(current_solution)
-        
         functions = {
             "total_makespan": self.total_makespan,
             "local_makespan": self.local_makespan
         }
-        visibility = functions[self.visibility_strat]
-        
+        visibility = functions[self.visibility_strat] # set the visiblity formula to use later
         for iteration in range(self.n):
             # Update progress tracker
             self.tracker.update(iteration + 1, current_makespan)
-            
             nb_jobs = self.problem.num_jobs
-            deltaPheromon = np.zeros((self.problem.num_jobs, self.problem.num_jobs))
+            deltaPheromon= np.zeros((self.problem.num_jobs+1, self.problem.num_jobs+1))
             average_makespan = 0
             ants_log = []
-            
             for ant in range(self.m):
                 available_jobs = list(range(nb_jobs))
-                path = []
-                first_step = np.random.randint(0, nb_jobs)
-                path.append(first_step)
-                available_jobs.remove(first_step)
-                
-                while len(available_jobs) > 1:
-                    current_job = path[-1]
-                    score_list = [(self.pheromoneGraph[current_job, job]**self.alpha) * 
-                                 ((1/visibility(job, path))**self.beta) for job in available_jobs]
+                path = [-1] # start always with the -1 task "the virtual initial task"
+                while len(available_jobs) > 1: # we have nb_jobs available jobs, the ant will choose n-1 using decision rules, the last remaining job will be chosen anyways so we processed that later after the while loop
+                    
+                    current_job = path[-1] # get the current job so far
+                    # now we will calculate the probability distribution so that the ant can pick the next task according to that distrbution
+                    score_list = [(self.pheromoneGraph[current_job+1,job+1]**self.alpha) * ((1/visibility(job,path[1:]))**self.beta) for job in available_jobs] 
                     total = sum(score_list)
                     score_list = np.array(score_list)
-                    distribution = (score_list+(0.001/len(available_jobs))) / (total+0.001)
+                    # added .001 to avoid division by 0
+                    distribution = (score_list+(0.001/len(available_jobs)) )/ (total+0.001)
                     sampled_job_index = np.random.choice(len(distribution), p=distribution)
                     selected_job = available_jobs[sampled_job_index]
                     path.append(selected_job)
                     available_jobs.remove(selected_job)
-                
-                path.append(available_jobs[0])
-                path_makespan = self.problem.evaluate(path)
-                
-                if path_makespan < current_makespan:
-                    current_solution = path
-                    current_makespan = path_makespan
-                
-                average_makespan += path_makespan
-                deltaSigma = self.q / path_makespan
-                
+                # now that the loop is done, we should end up with nb_jobs-1 jobs scheduled, leaving us with the last job that will be automatically added to the list
+                path.append(available_jobs[0]) 
+                path_makespan = self.problem.evaluate(path[1:])
+                if(path_makespan<current_makespan):
+                    current_solution=path[1:]
+                    current_makespan=path_makespan
+                #print("ant path and makespan : ", path, " ", path_makespan)
+                average_makespan = average_makespan + path_makespan
+                # computing delta sigma for this particular ant for later updates
+                deltaSigma=self.q/path_makespan
                 for arc in range(len(path)-1):
-                    deltaPheromon[path[arc], path[arc+1]] += deltaSigma
-                
-                ants_log.append((path, path_makespan))
-            
-            best_iteration_path, best_iteration_path_makespan = min(ants_log, key=lambda x: x[1])
-            
-            # Elitism
+                    deltaPheromon[path[arc]+1,path[arc+1]+1]+=deltaSigma
+                ants_log.append((path,path_makespan))
+            best_iteration_path,best_iteration_path_makespan = max(ants_log, key=lambda x: x[1])
+
+            # the elitism part
             for arc in range(len(best_iteration_path)-1):
-                deltaPheromon[best_iteration_path[arc], best_iteration_path[arc+1]] += self.e * self.q / best_iteration_path_makespan
+                deltaPheromon[best_iteration_path[arc]+1,best_iteration_path[arc+1]+1]+=self.e*self.q/best_iteration_path_makespan
             
-            self.pheromoneGraph = self.pheromoneGraph * (1-self.ro) + deltaPheromon
+            
+            self.pheromoneGraph= self.pheromoneGraph * (1-self.ro) + deltaPheromon
             frames.append(self.pheromoneGraph)
-        
+            print("average makespan per batch : ", average_makespan/self.m, "   ", iteration)
         self.best_makespan = current_makespan
         self.best_solution = current_solution
         end_time = time.time()
         self.frames = frames
-        self.execution_time = end_time - start_time
+        self.execution_time = end_time-start_time
         
         # Mark optimization as complete
         self.tracker.complete(self.best_makespan, self.best_solution)
