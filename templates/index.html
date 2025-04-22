@@ -39,6 +39,11 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link" href="/optuna">
+                            <i class="bi bi-sliders"></i> Hyperparameter Tuning
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="/analytics">
                             <i class="bi bi-graph-up"></i> Analytics
                         </a>
@@ -241,25 +246,25 @@
         const socket = io();
         let currentOptimizerId = null;
         
-    // Define algorithm descriptions for the recommendation section
-    const algorithm_descriptions = {
-        "ant_system": {
-            "name": "Ant System",
-            "description": "A population-based metaheuristic inspired by the foraging behavior of ants."
-        },
-        "genetic": {
-            "name": "Genetic Algorithm",
-            "description": "An evolutionary algorithm inspired by natural selection."
-        },
-        "local_search": {
-            "name": "Local Search",
-            "description": "A simple hill-climbing algorithm that iteratively improves a solution."
-        },
-        "simulated_annealing": {
-            "name": "Simulated Annealing",
-            "description": "A probabilistic technique inspired by the annealing process in metallurgy."
-        }
-    };
+        // Define algorithm descriptions for the recommendation section
+        const algorithm_descriptions = {
+            "ant_system": {
+                "name": "Ant System",
+                "description": "A population-based metaheuristic inspired by the foraging behavior of ants."
+            },
+            "genetic": {
+                "name": "Genetic Algorithm",
+                "description": "An evolutionary algorithm inspired by natural selection."
+            },
+            "local_search": {
+                "name": "Local Search",
+                "description": "A simple hill-climbing algorithm that iteratively improves a solution."
+            },
+            "simulated_annealing": {
+                "name": "Simulated Annealing",
+                "description": "A probabilistic technique inspired by the annealing process in metallurgy."
+            }
+        };
         
         // Load algorithm parameters when algorithm is selected
         document.getElementById('algorithm').addEventListener('change', function() {
@@ -398,76 +403,76 @@
                     `;
                 });
             
-    // Get algorithm recommendation
-    fetch('/recommend_algorithm', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ problem_instance: problemInstance }),
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            document.getElementById('recommendation-placeholder').textContent = `Error: ${data.error}`;
-            document.getElementById('recommendation-content').classList.add('d-none');
-            return;
-        }
-        
-        document.getElementById('recommendation-placeholder').classList.add('d-none');
-        document.getElementById('recommendation-content').classList.remove('d-none');
-        
-        // Make sure we have the algorithm name
-        const algorithmName = algorithm_descriptions[data.algorithm] ? 
-            algorithm_descriptions[data.algorithm].name : 
-            data.algorithm;
-            
-        document.getElementById('recommended-algorithm').textContent = algorithmName;
-        document.getElementById('recommendation-reason').textContent = data.reason || "No reason provided";
-        
-        // Populate problem analysis table
-        const analysisTable = document.getElementById('problem-analysis-table');
-        analysisTable.innerHTML = '';
-        
-        if (data.problem_analysis) {
-            for (const [key, value] of Object.entries(data.problem_analysis)) {
-                const row = document.createElement('tr');
+            // Get algorithm recommendation
+            fetch('/recommend_algorithm', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ problem_instance: problemInstance }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('recommendation-placeholder').textContent = `Error: ${data.error}`;
+                    document.getElementById('recommendation-content').classList.add('d-none');
+                    return;
+                }
                 
-                const keyCell = document.createElement('th');
-                keyCell.textContent = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                document.getElementById('recommendation-placeholder').classList.add('d-none');
+                document.getElementById('recommendation-content').classList.remove('d-none');
                 
-                const valueCell = document.createElement('td');
-                valueCell.textContent = typeof value === 'number' ? value.toFixed(2) : value;
+                // Make sure we have the algorithm name
+                const algorithmName = algorithm_descriptions[data.algorithm] ? 
+                    algorithm_descriptions[data.algorithm].name : 
+                    data.algorithm;
+                    
+                document.getElementById('recommended-algorithm').textContent = algorithmName;
+                document.getElementById('recommendation-reason').textContent = data.reason || "No reason provided";
                 
-                row.appendChild(keyCell);
-                row.appendChild(valueCell);
-                analysisTable.appendChild(row);
-            }
-        }
-        
-        // Set up apply recommendation button
-        document.getElementById('apply-recommendation-button').onclick = function() {
-            document.getElementById('algorithm').value = data.algorithm;
-            document.getElementById('algorithm').dispatchEvent(new Event('change'));
-            
-            // Wait for parameters to load
-            setTimeout(() => {
-                if (data.params) {
-                    for (const [key, value] of Object.entries(data.params)) {
-                        const input = document.getElementById(key);
-                        if (input) {
-                            input.value = value;
-                        }
+                // Populate problem analysis table
+                const analysisTable = document.getElementById('problem-analysis-table');
+                analysisTable.innerHTML = '';
+                
+                if (data.problem_analysis) {
+                    for (const [key, value] of Object.entries(data.problem_analysis)) {
+                        const row = document.createElement('tr');
+                        
+                        const keyCell = document.createElement('th');
+                        keyCell.textContent = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        
+                        const valueCell = document.createElement('td');
+                        valueCell.textContent = typeof value === 'number' ? value.toFixed(2) : value;
+                        
+                        row.appendChild(keyCell);
+                        row.appendChild(valueCell);
+                        analysisTable.appendChild(row);
                     }
                 }
-            }, 500);
-        };
-    })
-    .catch(error => {
-        console.error("Error fetching algorithm recommendation:", error);
-        document.getElementById('recommendation-placeholder').textContent = `Error: ${error.message}`;
-        document.getElementById('recommendation-content').classList.add('d-none');
-    });
+                
+                // Set up apply recommendation button
+                document.getElementById('apply-recommendation-button').onclick = function() {
+                    document.getElementById('algorithm').value = data.algorithm;
+                    document.getElementById('algorithm').dispatchEvent(new Event('change'));
+                    
+                    // Wait for parameters to load
+                    setTimeout(() => {
+                        if (data.params) {
+                            for (const [key, value] of Object.entries(data.params)) {
+                                const input = document.getElementById(key);
+                                if (input) {
+                                    input.value = value;
+                                }
+                            }
+                        }
+                    }, 500);
+                };
+            })
+            .catch(error => {
+                console.error("Error fetching algorithm recommendation:", error);
+                document.getElementById('recommendation-placeholder').textContent = `Error: ${error.message}`;
+                document.getElementById('recommendation-content').classList.add('d-none');
+            });
         });
         
         // Handle form submission
@@ -611,6 +616,45 @@
                 document.getElementById('solution-viz').src = `data:image/png;base64,${data.solution_viz}`;
             } else {
                 document.getElementById('solution-viz-container').classList.add('d-none');
+            }
+        });
+        
+        // Check if we're coming from the Optuna page with parameters to apply
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const applyParams = urlParams.get('apply_params');
+            const algorithm = urlParams.get('algorithm');
+            const problem = urlParams.get('problem');
+            
+            if (applyParams === 'true' && algorithm && problem) {
+                // Set the problem and algorithm dropdowns
+                document.getElementById('problem-instance').value = problem;
+                document.getElementById('algorithm').value = algorithm;
+                
+                // Trigger the change event to load parameters
+                document.getElementById('algorithm').dispatchEvent(new Event('change'));
+                
+                // Wait for parameters to load
+                setTimeout(() => {
+                    // Get the stored parameters
+                    const params = JSON.parse(sessionStorage.getItem('best_params')) || {};
+                    
+                    // Set each parameter value
+                    for (const [key, value] of Object.entries(params)) {
+                        const input = document.getElementById(key);
+                        if (input) {
+                            input.value = value;
+                        }
+                    }
+                    
+                    // Clear the session storage
+                    sessionStorage.removeItem('best_params');
+                    sessionStorage.removeItem('algorithm');
+                    sessionStorage.removeItem('problem_instance');
+                    
+                    // Show a notification
+                    alert('Optuna parameters have been applied. You can now run the optimization with these optimal parameters.');
+                }, 500);
             }
         });
     </script>

@@ -214,7 +214,7 @@ if __name__ == "__main__":
     optimizer.optimize()
     
     #uncomment this if you want to see a visualisation of the evolution of the graph matrix
-    #optimizer.generate_video(optimizer.frames,fps=30)
+    # optimizer.generate_video(optimizer.frames,fps=30)
 
 
     # This prints the path of the best solution, its makespan and the execution time in seconds

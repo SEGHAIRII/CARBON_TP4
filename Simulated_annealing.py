@@ -117,7 +117,7 @@ class SimulatedAnnealingOptimizer(AbstractOptimizer):
 if __name__ == "__main__":
     # Example usage
 
-    problem = FlowShopProblem('./data/20_5_1.txt')
+    problem = FlowShopProblem('./data/50_20_1.txt')
     study = optuna.create_study(direction='minimize')
 
     # Define the optimization loop

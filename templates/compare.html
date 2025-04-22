@@ -1,19 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Compare Algorithms - FlowShop Optimizer</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Keep your existing head content -->
+    <title>Compare Optimizations - FlowShop Optimizer</title>
+    <!-- ... -->
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container-fluid">
-            <a class="navbar-brand" href="/">
-                <i class="bi bi-diagram-3"></i> FlowShop Optimizer
+            <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+                <img src="{{ url_for('static', filename='images/carbon.png') }}" alt="Carbon Logo" style="height: 40px;">
+                <span>FlowShop Optimizer</span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -21,449 +18,40 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav">
                     <li class="nav-item">
-                        <a class="nav-link" href="/">Home</a>
+                        <a class="nav-link" href="/">
+                            <i class="bi bi-house-door"></i> Home
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/history">History</a>
+                        <a class="nav-link" href="/history">
+                            <i class="bi bi-clock-history"></i> History
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link active" href="/compare">Compare</a>
+                        <a class="nav-link active" href="/compare">
+                            <i class="bi bi-bar-chart-steps"></i> Compare
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/analytics">Analytics</a>
+                        <a class="nav-link" href="/optuna">
+                            <i class="bi bi-sliders"></i> Hyperparameter Tuning
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/analytics">
+                            <i class="bi bi-graph-up"></i> Analytics
+                        </a>
                     </li>
                 </ul>
+                <div class="ms-auto d-none d-lg-block">
+                    <span class="badge bg-light text-dark">
+                        <i class="bi bi-people-fill"></i> Carbon Team
+                    </span>
+                </div>
             </div>
         </div>
     </nav>
 
-    <div class="container mt-4">
-        <div class="row">
-            <div class="col-md-4">
-                <div class="card mb-4">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="card-title mb-0">
-                            <i class="bi bi-bar-chart-steps"></i> Comparison Settings
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <form id="comparison-form">
-                            <div class="mb-3">
-                                <label for="problem-instance" class="form-label">Problem Instance</label>
-                                <select class="form-select" id="problem-instance" required>
-                                    <option value="" selected disabled>Select a problem instance</option>
-                                    <!-- Problem instances will be loaded dynamically -->
-                                </select>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label class="form-label">Algorithms to Compare</label>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" value="ant_system" id="check-ant-system">
-                                    <label class="form-check-label" for="check-ant-system">
-                                        Ant System
-                                    </label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" value="genetic" id="check-genetic">
-                                    <label class="form-check-label" for="check-genetic">
-                                        Genetic Algorithm
-                                    </label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" value="local_search" id="check-local-search">
-                                    <label class="form-check-label" for="check-local-search">
-                                        Local Search
-                                    </label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" value="simulated_annealing" id="check-simulated-annealing">
-                                    <label class="form-check-label" for="check-simulated-annealing">
-                                        Simulated Annealing
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <div id="algorithm-params-container">
-                                <!-- Algorithm parameters will be loaded dynamically -->
-                            </div>
-                            
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="bi bi-play-fill"></i> Run Comparison
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-8">
-                <div class="card mb-4">
-                    <div class="card-header bg-success text-white">
-                        <h5 class="card-title mb-0">
-                            <i class="bi bi-graph-up"></i> Comparison Results
-                        </h5>
-                    </div>
-                    <div class="card-body" id="results-container">
-                        <div id="loading-container" class="text-center py-5 d-none">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                            <p class="mt-3">Running comparison...</p>
-                        </div>
-                        
-                        <div id="comparison-results" class="d-none">
-                            <div class="mb-4">
-                                <h5>Performance Comparison</h5>
-                                <div class="text-center">
-                                    <img id="comparison-chart" class="img-fluid rounded" alt="Comparison Chart">
-                                </div>
-                            </div>
-                            
-                            <div class="mb-4">
-                                <h5>Results Table</h5>
-                                <div class="table-responsive">
-                                    <table class="table table-striped table-hover">
-                                        <thead>
-                                            <tr>
-                                                <th>Algorithm</th>
-                                                <th>Makespan</th>
-                                                <th>Execution Time</th>
-                                                <th>Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="results-table-body">
-                                            <!-- Results will be loaded dynamically -->
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                            
-                            <div class="d-flex justify-content-between">
-                                <button id="export-comparison-button" class="btn btn-secondary">
-                                    <i class="bi bi-download"></i> Export Results
-                                </button>
-                                <button id="new-comparison-button" class="btn btn-success">
-                                    <i class="bi bi-plus-circle"></i> New Comparison
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div id="no-results" class="text-center py-5">
-                            <i class="bi bi-bar-chart-line display-1 text-muted"></i>
-                            <p class="mt-3 text-muted">Select algorithms to compare and run the comparison</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal for viewing solution details -->
-    <div class="modal fade" id="solutionModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="solutionModalTitle">Solution Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body" id="solutionModalBody">
-                    <!-- Solution details will be loaded dynamically -->
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Load problem instances
-        fetch('/get_problem_instances')
-            .then(response => response.json())
-            .then(data => {
-                const select = document.getElementById('problem-instance');
-                data.forEach(instance => {
-                    const option = document.createElement('option');
-                    option.value = instance;
-                    option.textContent = instance;
-                    select.appendChild(option);
-                });
-            });
-        
-        // Handle algorithm checkbox changes
-        const algorithmCheckboxes = document.querySelectorAll('input[type="checkbox"]');
-        algorithmCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
-                updateAlgorithmParams();
-            });
-        });
-        
-        function updateAlgorithmParams() {
-            const container = document.getElementById('algorithm-params-container');
-            container.innerHTML = '';
-            
-            const selectedAlgorithms = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
-                .map(checkbox => checkbox.value);
-            
-            if (selectedAlgorithms.length === 0) return;
-            
-            selectedAlgorithms.forEach(algorithm => {
-                fetch('/get_algorithm_params', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ algorithm }),
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (!data.params || data.params.length === 0) return;
-                    
-                    const algorithmTitle = document.createElement('h5');
-                    algorithmTitle.textContent = getAlgorithmName(algorithm) + ' Parameters';
-                    algorithmTitle.className = 'mt-4 mb-3';
-                    container.appendChild(algorithmTitle);
-                    
-                    const paramsDiv = document.createElement('div');
-                    paramsDiv.className = 'algorithm-params';
-                    paramsDiv.dataset.algorithm = algorithm;
-                    
-                    data.params.forEach(param => {
-                        const formGroup = document.createElement('div');
-                        formGroup.className = 'mb-3';
-                        
-                        const label = document.createElement('label');
-                        label.htmlFor = `${algorithm}-${param.id}`;
-                        label.className = 'form-label';
-                        label.textContent = param.name;
-                        
-                        let input;
-                        
-                        if (param.type === 'select') {
-                            input = document.createElement('select');
-                            input.className = 'form-select';
-                            
-                            param.options.forEach(option => {
-                                const optionEl = document.createElement('option');
-                                optionEl.value = option.value;
-                                optionEl.textContent = option.text;
-                                if (option.value === param.default) {
-                                    optionEl.selected = true;
-                                }
-                                input.appendChild(optionEl);
-                            });
-                        } else {
-                            input = document.createElement('input');
-                            input.type = param.type;
-                            input.className = 'form-control';
-                            input.value = param.default;
-                            
-                            if (param.min !== undefined) input.min = param.min;
-                            if (param.max !== undefined) input.max = param.max;
-                            if (param.step !== undefined) input.step = param.step;
-                        }
-                        
-                        input.id = `${algorithm}-${param.id}`;
-                        input.name = `${algorithm}-${param.id}`;
-                        input.dataset.param = param.id;
-                        
-                        formGroup.appendChild(label);
-                        formGroup.appendChild(input);
-                        paramsDiv.appendChild(formGroup);
-                    });
-                    
-                    container.appendChild(paramsDiv);
-                });
-            });
-        }
-        
-        function getAlgorithmName(algorithmId) {
-            const names = {
-                'ant_system': 'Ant System',
-                'genetic': 'Genetic Algorithm',
-                'local_search': 'Local Search',
-                'simulated_annealing': 'Simulated Annealing'
-            };
-            return names[algorithmId] || algorithmId;
-        }
-        
-        // Handle form submission
-        document.getElementById('comparison-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const problemInstance = document.getElementById('problem-instance').value;
-            const selectedAlgorithms = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
-                .map(checkbox => checkbox.value);
-            
-            if (!problemInstance) {
-                alert('Please select a problem instance');
-                return;
-            }
-            
-            if (selectedAlgorithms.length === 0) {
-                alert('Please select at least one algorithm to compare');
-                return;
-            }
-            
-            // Prepare algorithms with their parameters
-            const algorithms = selectedAlgorithms.map(algorithm => {
-                const paramsDiv = document.querySelector(`.algorithm-params[data-algorithm="${algorithm}"]`);
-                const params = {};
-                
-                if (paramsDiv) {
-                    const inputs = paramsDiv.querySelectorAll('input, select');
-                    inputs.forEach(input => {
-                        params[input.dataset.param] = input.value;
-                    });
-                }
-                
-                return {
-                    algorithm,
-                    params
-                };
-            });
-            
-            // Show loading
-            document.getElementById('no-results').classList.add('d-none');
-            document.getElementById('comparison-results').classList.add('d-none');
-            document.getElementById('loading-container').classList.remove('d-none');
-            
-            // Run comparison
-            fetch('/compare_algorithms', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    problem_instance: problemInstance,
-                    algorithms: algorithms
-                }),
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('loading-container').classList.add('d-none');
-                
-                if (data.error) {
-                    alert(`Error: ${data.error}`);
-                    document.getElementById('no-results').classList.remove('d-none');
-                    return;
-                }
-                
-                // Display results
-                document.getElementById('comparison-results').classList.remove('d-none');
-                
-                // Update comparison chart
-                document.getElementById('comparison-chart').src = `data:image/png;base64,${data.comparison_chart}`;
-                
-                // Update results table
-                const tableBody = document.getElementById('results-table-body');
-                tableBody.innerHTML = '';
-                
-                data.results.forEach((result, index) => {
-                    const row = document.createElement('tr');
-                    
-                    const algorithmCell = document.createElement('td');
-                    algorithmCell.textContent = result.algorithm_name;
-                    
-                    const makespanCell = document.createElement('td');
-                    makespanCell.textContent = result.makespan;
-                    
-                    const timeCell = document.createElement('td');
-                    timeCell.textContent = `${result.execution_time.toFixed(2)}s`;
-                    
-                    const actionsCell = document.createElement('td');
-                    const viewButton = document.createElement('button');
-                    viewButton.className = 'btn btn-sm btn-primary';
-                    viewButton.innerHTML = '<i class="bi bi-eye"></i> View';
-                    viewButton.addEventListener('click', function() {
-                        showSolutionDetails(result);
-                    });
-                    actionsCell.appendChild(viewButton);
-                    
-                    row.appendChild(algorithmCell);
-                    row.appendChild(makespanCell);
-                    row.appendChild(timeCell);
-                    row.appendChild(actionsCell);
-                    
-                    tableBody.appendChild(row);
-                });
-            })
-            .catch(error => {
-                document.getElementById('loading-container').classList.add('d-none');
-                document.getElementById('no-results').classList.remove('d-none');
-                alert(`Error: ${error.message}`);
-            });
-        });
-        
-        function showSolutionDetails(result) {
-            const modal = new bootstrap.Modal(document.getElementById('solutionModal'));
-            document.getElementById('solutionModalTitle').textContent = `${result.algorithm_name} Solution`;
-            
-            const modalBody = document.getElementById('solutionModalBody');
-            modalBody.innerHTML = `
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <h5 class="card-title">Makespan</h5>
-                                <h2 class="text-primary">${result.makespan}</h2>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="card bg-light">
-                            <div class="card-body">
-                                <h5 class="card-title">Execution Time</h5>
-                                <h2 class="text-success">${result.execution_time.toFixed(2)}s</h2>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="mb-3">
-                    <h5>Solution</h5>
-                    <div class="solution-display p-2 bg-light rounded">
-                        ${result.solution.map(job => `<span class="badge bg-primary me-1">Job ${job}</span>`).join('')}
-                    </div>
-                </div>
-                
-                <div class="mb-3">
-                    <h5>Parameters</h5>
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Parameter</th>
-                                    <th>Value</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${Object.entries(result.params).map(([key, value]) => `
-                                    <tr>
-                                        <td>${key}</td>
-                                        <td>${value}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
-            
-            modal.show();
-        }
-        
-        // Handle new comparison button
-        document.getElementById('new-comparison-button').addEventListener('click', function() {
-            document.getElementById('comparison-results').classList.add('d-none');
-            document.getElementById('no-results').classList.remove('d-none');
-        });
-        
-        // Handle export comparison button
-        document.getElementById('export-comparison-button').addEventListener('click', function() {
-            window.open('/export_history?format=csv', '_blank');
-        });
-    </script>
+    <!-- Keep the rest of your compare.html content -->
 </body>
 </html>

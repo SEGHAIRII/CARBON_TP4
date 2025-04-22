@@ -164,32 +164,32 @@ class GeneticAlgorithmOptimizer(AbstractOptimizer):
 
 if __name__ == "__main__":
     problem = FlowShopProblem('./data/20_20_1.txt')
-    params = {
-        'population_size': 30,
-        'crossover_rate': 0.8,
-        'mutation_rate': 0.15,
-        'iterations': 200,
-        'seed': 42,
-        'selection_type': 'roulette',
-        'tournament_size': 3,
-        'crossover_type': 'two_point',
-        'mutation_type': 'inversion'
-    }
-    optimizer = GeneticAlgorithmOptimizer(problem, **params)
-    optimizer.run()
-    results = optimizer.get_results()
-    print(f"Best makespan: {results['makespan']}")
-    print(f"Best schedule: {results['schedule']}")
-    print(f"Execution time: {results['execution_time']:.4f}s")
+    # params = {
+    #     'population_size': 30,
+    #     'crossover_rate': 0.8,
+    #     'mutation_rate': 0.15,
+    #     'iterations': 200,
+    #     'seed': 42,
+    #     'selection_type': 'roulette',
+    #     'tournament_size': 3,
+    #     'crossover_type': 'two_point',
+    #     'mutation_type': 'inversion'
+    # }
+    # optimizer = GeneticAlgorithmOptimizer(problem, **params)
+    # optimizer.run()
+    # results = optimizer.get_results()
+    # print(f"Best makespan: {results['makespan']}")
+    # print(f"Best schedule: {results['schedule']}")
+    # print(f"Execution time: {results['execution_time']:.4f}s")
 
     # # Uncomment to use suggest_params with Optuna
-    # import optuna
-    # study = optuna.create_study(direction='minimize')
-    # def objective(trial):
-    #     suggested = GeneticAlgorithmOptimizer.suggest_params(trial)
-    #     opt = GeneticAlgorithmOptimizer(problem, **suggested)
-    #     opt.run()
-    #     return opt.get_results()['makespan']
-    # study.optimize(objective, n_trials=50)
-    # print(f"Best hyperparameters: {study.best_params}")
-    # print(f"Best makespan: {study.best_value}")
+    import optuna
+    study = optuna.create_study(direction='minimize')
+    def objective(trial):
+        suggested = GeneticAlgorithmOptimizer.suggest_params(trial)
+        opt = GeneticAlgorithmOptimizer(problem, **suggested)
+        opt.run()
+        return opt.get_results()['makespan']
+    study.optimize(objective, n_trials=50)
+    print(f"Best hyperparameters: {study.best_params}")
+    print(f"Best makespan: {study.best_value}")
