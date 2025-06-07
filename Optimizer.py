@@ -9,12 +9,16 @@ class AbstractOptimizer(ABC):
         self.best_solution = None
         self.best_makespan = float('inf')
         self.execution_time = 0.0
+        self.callback = None
 
 
     @abstractmethod
     def optimize(self):
        
         pass
+    
+    def set_callback(self, callback):
+        self.callback = callback
 
     @classmethod
     @abstractmethod
